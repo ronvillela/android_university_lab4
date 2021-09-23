@@ -11,9 +11,17 @@ import android.widget.Toast;
 
 import androidx.annotation.NonNull;
 import androidx.appcompat.widget.SearchView;
+import androidx.core.widget.ContentLoadingProgressBar;
 import androidx.fragment.app.Fragment;
+import androidx.recyclerview.widget.LinearLayoutManager;
+import androidx.recyclerview.widget.RecyclerView;
 
+import com.codepath.recyclerviewlab.models.Article;
+import com.codepath.recyclerviewlab.models.ArticlesResponse;
+import com.codepath.recyclerviewlab.networking.CallbackResponse;
 import com.codepath.recyclerviewlab.networking.NYTimesApiClient;
+
+import java.util.List;
 
 
 /**
@@ -24,6 +32,8 @@ import com.codepath.recyclerviewlab.networking.NYTimesApiClient;
 public class ArticleResultFragment extends Fragment {
 
     private NYTimesApiClient client = new NYTimesApiClient();
+    private RecyclerView recyclerView;
+    private ContentLoadingProgressBar progressSpinner;
 
 
     /**
@@ -61,7 +71,12 @@ public class ArticleResultFragment extends Fragment {
     public View onCreateView(LayoutInflater inflater, ViewGroup container,
                              Bundle savedInstanceState) {
         View view = inflater.inflate(R.layout.fragment_article_result_list, container, false);
-
+        recyclerView = view.findViewById(R.id.list);
+        progressSpinner = view.findViewById(R.id.progress);
+        Context context = view.getContext();
+        LinearLayoutManager linearLayoutManager = new LinearLayoutManager(context);
+        recyclerView.setLayoutManager(linearLayoutManager);
+        recyclerView.setAdapter(new ArticleResultsRecyclerViewAdapter());
         return view;
     }
 
@@ -77,9 +92,21 @@ public class ArticleResultFragment extends Fragment {
     }
 
     private void loadNewArticlesByQuery(String query) {
-        Log.d("ArticleResultFragment", "loading articles for query " + query);
-        Toast.makeText(getContext(), "Loading articles for \'" + query + "\'", Toast.LENGTH_SHORT).show();
-        // TODO(Checkpoint 3): Implement this method to populate articles
+        client.getArticlesByQuery(new CallbackResponse<List<Article>>() {
+            @Override
+            public void onSuccess(List<Article> models) {
+                Log.d("ArticleResultFragment", "Successfully loaded articles");
+                ArticleResultsRecyclerViewAdapter adapter = (ArticleResultsRecyclerViewAdapter) recyclerView.getAdapter();
+                adapter.setNewArticles(models);
+                // notify dataset changed will tell your adapter that it's data has changed and refresh the view layout
+                adapter.notifyDataSetChanged();
+            }
+            @Override
+            public void onFailure(Throwable error) {
+                Toast.makeText(getContext(), error.getMessage(), Toast.LENGTH_SHORT).show();
+                Log.d("ArticleResultFragment", "Failure loading articles " + error.getMessage());
+            }
+        }, query);
     }
 
     private void loadArticlesByPage(final int page) {
